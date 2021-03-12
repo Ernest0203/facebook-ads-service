@@ -1,0 +1,23 @@
+.idea/*
+.vscode/*
+
+# Mac DS_Store Files
+.DS_Store
+
+# zend studio for eclipse project files
+.buildpath
+.project
+.settings
+
+# windows thumbnail cache
+Thumbs.db
+/node_modules/
+/.idea/
+
+npm-debug.*
+yarn-error.log*
+storage.db*
+
+# ignore local configs
+config/local*
+

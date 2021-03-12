@@ -1,0 +1,38 @@
+{
+  "name": "adservice",
+  "version": "0.0.1",
+  "description": "",
+  "scripts": {
+    "start": "cross-env NODE_ENV=production node ./src/runserver.js",
+    "dev": "cross-env NODE_ENV=development nodemon src/runserver.js",
+    "dev:debug": "node --inspect-brk",
+    "migrate": "migrate up",
+    "migrate:rollback": "migrate down",
+    "lint": "eslint \"./**/*.js\" --quiet",
+    "lint_fix": "eslint --fix \"./**/*.js\""
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@hapi/boom": "^9.1.1",
+    "api-query-params": "^5.0.0",
+    "axios": "^0.21.0",
+    "config": "^3.3.3",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "express": "^4.17.1",
+    "express-async-handler": "^1.1.4",
+    "express-jwt": "^6.0.0",
+    "facebook-nodejs-business-sdk": "^9.0.0",
+    "fast-csv": "^4.3.6",
+    "joi": "^17.3.0",
+    "migrate": "^1.7.0",
+    "mongoose": "^5.11.5",
+    "multer": "^1.4.2",
+    "nodemon": "^2.0.6",
+    "winston": "^3.3.3"
+  },
+  "devDependencies": {
+    "eslint": "^7.15.0"
+  }
+}

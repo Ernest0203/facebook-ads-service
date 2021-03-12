@@ -1,0 +1,26 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 2000,
+    "baseURL": "",
+    "tempPath": "~/temp/"
+  },
+  "db": {
+    "mongo": {
+      "user": "admin",
+      "password": "admin",
+      "dbname": "test", 
+      "uri": "mongodb+srv://admin:admin@cluster0.l0g7s.mongodb.net/test?retryWrites=true&w=majority"
+    }
+  },
+  "facebook": {
+    "accessToken": "EAAF00qRlumwBAATncNH8coTNASvqjtaZCUQ5yqLZAAm7a5QIs8IUd4VkAPgdgBsb84zpMeSoNIeg00d0SqKt8laZC1acJERlfhHjQyqF8wDjTmD17R7oZBqn0q2UhF9ssYaVgQSeKZAZBYt58f7AeoonqevEtzhZAPZCGJP9ZB23URgZDZD",
+    "adAccountId": "411847933496802",
+    "pageId": "101722741834494",
+    "businessId": "214639823500022",
+    "pixelId": "1186661128823179"
+  },
+  "jwt": {
+    "secret": "secret"
+  }
+}
