@@ -9,7 +9,27 @@ const RetargetingAdSchema = new Schema({
   feed_id: { type: String, required: true },
   adset_id: { type: String, required: true },
   creative_id: { type: String, required: true },
-  listings: [],
+  listings: [{
+    wlId: { type: String, required: true },
+    title: { type: String, required: true },
+    saleType: { type: String, required: true },
+    price: { type: String, required: true },
+    link: { type: String, required: true },
+    description: String,
+    beds: { type: Number, required: true },
+    baths: { type: Number, required: true },
+    buildingNumber: { type: String, required: true },
+    streetName: { type: String, required: true },
+    neighborhood: { type: String, required: true },
+    city: { type: String, required: true },
+    state: { type: String, required: true },
+    zip: { type: Number, required: true },
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+    imageSrc: { type: String, required: true },
+    agentName: { type: String, required: true },
+    agentCompany: { type: String, required: true },
+  }],
   status: { type: String, required: true },
   budget: { type: String, required: true },
   agentName: { type: String, required: true },
@@ -18,10 +38,10 @@ const RetargetingAdSchema = new Schema({
   end_time: Date,
   isRemoved: { type: Boolean, default: false },
   userId: Number,
-  userTypeId: Number,
+  userTypeId: Number
 }, {
   versionKey: false,
-  timestamps: true,
+  timestamps: true
 });
 
-module.exports = RetargetingAds = mongoose.model('retargetingAds', RetargetingAdSchema);
+module.exports = mongoose.model('retargetingAds', RetargetingAdSchema);

@@ -19,11 +19,10 @@ const createCsv = (args) => new Promise((resolve, reject) => {
     lng: 'longitude',
     neighborhood: 'neighborhood[0]',
     imageSrc: 'image[0].url',
-    imageSrc: 'image[0].url',
     link: 'url',
     beds: 'num_beds',
-    baths: 'num_baths',
-  }
+    baths: 'num_baths'
+  };
   
   const headers = Object.keys(args[0]).map(item => {
     return originalHeaders[item] ? originalHeaders[item] : item;
@@ -38,7 +37,7 @@ const createCsv = (args) => new Promise((resolve, reject) => {
     }).concat(['United States']);
   });
 
-  const result = [ headers, ...rows ]
+  const result = [ headers, ...rows ];
 
   writeToPath(path.resolve(__dirname, '../../resources/tmp.csv'), result)
     .on('error', err => reject(err))

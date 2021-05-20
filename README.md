@@ -68,6 +68,7 @@ POST /ads/          create ad       // return object
             country: 'US',
             budget: '100',  // cents
             link: 'https://listing3d.com/67-cottage-street-jeffries-point-boston-ma/sYQAAB_YAAAL8',
+            imageUrl: 'url of image'                    // non required
             img: input type='file' append to form data  // non required
             body: '1 Bedroom, 1 Bathroom, 558 Sq.feet', // non required  // some description
             startTime: '2021-01-20T13:23:34+0200',      // non required

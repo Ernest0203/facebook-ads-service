@@ -30,7 +30,7 @@ const handleBoomError = (req, res, boom) => {
 const handleMongoose = (err, res) => response(res)
   .errors(eject(Object.values(err.errors), 'message'), 400);
 
-module.exports = (err, req, res, next) => {
+module.exports = (err, req, res) => {
   const handle = (error) => handleBoomError(req, res, error);
 
   if (err instanceof Error) {

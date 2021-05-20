@@ -23,10 +23,10 @@ const AdSchema = new Schema({
   endTime: Date,
   isRemoved: { type: Boolean, default: false },
   userId: Number,
-  userTypeId: Number,
+  userTypeId: Number
 }, {
   versionKey: false,
   timestamps: true
 });
 
-module.exports = Ads = mongoose.model('ads', AdSchema);
+module.exports = mongoose.model('ads', AdSchema);

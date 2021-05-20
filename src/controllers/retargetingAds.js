@@ -22,7 +22,7 @@ const getAds = (req, res) => {
     .limit(limit || 100)
     .sort(sort)
     .then(ads => response(res).success(ads));
-}
+};
 
 const createAd = async (req, res) => {
   const adFromApi = await facebookApi.createRetargetingAd(req.body);
@@ -37,8 +37,9 @@ const updateAd = async (req, res) => {
 };
 
 const deleteAd = async (req, res) => {
-  const result = await facebookApi.deleteRetargetingAd(req.data)
-  if (result.success) RetargetingAds.findByIdAndUpdate({ _id: req.data._id }, { isRemoved: true }, { new: true, upser: true })
+  const responseFromApi = await facebookApi.deleteRetargetingAd(req.data);
+  if (!responseFromApi.success) response.error('Ad was not delete');
+  return RetargetingAds.findByIdAndUpdate({ _id: req.data._id }, { isRemoved: true }, { new: true, upser: true })
     .then(result => response(res).success(result._id));
 };
 
@@ -69,7 +70,7 @@ const getStats = async (req, res) => {
     _id: 0,
     impressions: { $sum: '$impressions' },
     clicks: { $sum: '$clicks' },
-    spend: { $sum: '$spend' },
+    spend: { $sum: '$spend' }
   };
 
   const day = group === 'month' ? 0 : 1;
@@ -79,7 +80,7 @@ const getStats = async (req, res) => {
     { $group: aggregateGroup },
     { $project: { _id: 0, impressions: 1, clicks: 1, spend: 1, day: day, month: 1, year: 1 } },
     { $skip: skip || 0 },
-    { $limit: limit || 100 },
+    { $limit: limit || 100 }
   ]);
 
   response(res).success(stats);
@@ -90,8 +91,7 @@ module.exports = {
   getAd: asyncHandler(getAd),
   getAds: asyncHandler(getAds),
   getStats: asyncHandler(getStats),
-  //createAd: asyncHandler(createAd),
-  createAd: createAd,
+  createAd: asyncHandler(createAd),
   updateAd: asyncHandler(updateAd),
-  deleteAd: asyncHandler(deleteAd),
-}
+  deleteAd: asyncHandler(deleteAd)
+};

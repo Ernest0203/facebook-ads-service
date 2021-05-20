@@ -1,4 +1,4 @@
-const fs = require('fs');
+const fs = require('fs').promises;
 const config = require('config');
 const adsSdk = require('facebook-nodejs-business-sdk');
 const createCsv = require('../utils/createCsv');
@@ -7,7 +7,6 @@ const { Stats } = require('../db/models/index');
 const facebook = config.get('facebook');
 let { accessToken, adAccountId, pageId, businessId, pixelId } = facebook;
 
-const api = adsSdk.FacebookAdsApi.init(accessToken);
 const AdAccount = adsSdk.AdAccount;
 const Campaign = adsSdk.Campaign;
 const AdSet = adsSdk.AdSet;
@@ -17,12 +16,11 @@ const Business = adsSdk.Business;
 const ProductCatalog = adsSdk.ProductCatalog;
 const ProductFeed = adsSdk.ProductFeed;
 const ProductFeedUpload = adsSdk.ProductFeedUpload;
-const AdsInsights = adsSdk.AdsInsights;
 const AdImage = adsSdk.AdImage;
 
+adsSdk.FacebookAdsApi.init(accessToken);
 const account = new AdAccount(`act_${adAccountId}`);
 const business = new Business(businessId);
-
 
 const getQuery = (concurrence, args) => {
   return concurrence.reduce((res, current) => ({ ...res, [current]: args[current] }) ,{});
@@ -37,7 +35,6 @@ const adsManagerArgs = {
     name: '',
     objective: 'LINK_CLICKS',
     special_ad_categories: ['HOUSING'],
-    status: 'ACTIVE',
   },
   adSet: {
     name : '',
@@ -61,11 +58,9 @@ const adsManagerArgs = {
       device_platforms: [ 'mobile', 'desktop' ],
       audience_network_positions: [ 'classic', 'rewarded_video' ]
     },
-    status : 'ACTIVE',
   },
   ad: {
     name : '',
-    status : 'ACTIVE',
     tracking_specs : [ {'action.type': ['offsite_conversion'], 'fb_pixel': [pixelId]} ],
     adset_id: ''
   },
@@ -110,9 +105,9 @@ const catalogArgs = {
         call_to_action: { type: 'LEARN_MORE' },
         link: 'https://listing3d.com',
         name: '{{home_listing.name}}', 
-        message: '{{home_listing.description}}',
+        message: '{{home_listing.description}}'
       }
-    },
+    }
   }
 };
 
@@ -129,8 +124,8 @@ const updateCampaign = (args = {}) => {
   return new Campaign(id).update([Campaign.Fields.name], {name: agentName})
     .then(res => {
       if (res.success !== true) return Promise.reject('Campaign was not update');
-      return new Campaign(id).get([Campaign.Fields.name]).then(res => ({ agentName: agentName  }));
-    })
+      return new Campaign(id).get([Campaign.Fields.name]).then(() => ({ agentName: agentName  }));
+    });
 };
 
 const createAdSet = (args) => {
@@ -149,8 +144,8 @@ const updateAdSet = (args = {}) => {
         ...adsManagerArgs.adSet.targeting.geo_locations,
         custom_locations: [{ ...adsManagerArgs.adSet.targeting.geo_locations.custom_locations[0], address_string: args.address_string }]
       } 
-    }
-  };
+    };
+  }
   return new AdSet(query.id).update([], query).then(async res => {
     if (res.success !== true) return Promise.reject('Adset was not update');
     const adSet = await new AdSet(query.id).get([fields]);
@@ -158,17 +153,22 @@ const updateAdSet = (args = {}) => {
       agentName: adSet._data.name,
       startTime: adSet._data.start_time,
       endTime: adSet._data.end_time,
-      budget: adSet._data.daily_budget,
-    }
-  })
+      budget: adSet._data.daily_budget
+    };
+  });
 };
 
 const createAdCreative = async (args = {}) => {
-  if (args.image) {
-    const imageAsBase64 = fs.readFileSync(args.image.path, 'base64');
+  if (args.image && !args.imageUrl) {
+    const imageAsBase64 = await fs.readFile(args.image.path, 'base64');
     const adImage = await account.createAdImage([Object.keys(AdImage.Fields)], {bytes: imageAsBase64}, new AdImage(adAccountId));
+    if (args.object_story_spec.link_data.picture) delete args.object_story_spec.link_data.picture;
     args.object_story_spec.link_data.image_hash = adImage._data.images.bytes.hash;
   };
+  if (args.imageUrl) {
+    if (args.object_story_spec.link_data.image_hash) delete args.object_story_spec.link_data.image_hash;
+    args.object_story_spec.link_data.picture = args.imageUrl; 
+  }
   return new AdCreative(null, args);
 };
 
@@ -183,7 +183,7 @@ const updateAdCreative = async (args = {}) => {
   query.object_story_spec.link_data = Object.keys(query.object_story_spec.link_data).reduce((res, current) => {
     const prop = args[current] !== undefined && args[current] !== query.object_story_spec.link_data[current]
       ? args[current]
-      : query.object_story_spec.link_data[current]
+      : query.object_story_spec.link_data[current];
     return { ...res, [current]: prop };
   },{});
   const creative = await createAdCreative(query);
@@ -194,6 +194,7 @@ const createAd = async (args) => {
   const creative = await createAdCreative(args.creative);
   args.ad.creative = creative;
   const ad = await account.createAd(Object.keys(Ad.Fields), args.ad);
+  const createdCreative = await new AdCreative(ad.creative.id).get(Object.keys(AdCreative.Fields));
   const result = { 
     id: ad.id,
     account_id: ad.account_id,
@@ -205,8 +206,8 @@ const createAd = async (args) => {
     link: args.retargeting ? '' : creative.object_story_spec.link_data.link,
     status: ad.status,
     buttonType: args.retargeting ? creative._data.object_story_spec.template_data.call_to_action.type : '',
+    image: args.creative.imageUrl ? args.creative.imageUrl : createdCreative.image_url
   };
-
   return result;
 };
 
@@ -218,16 +219,17 @@ const updateAd = async (args = {}) => {
     if (res.success !== true) return Promise.reject('Ad was not update');
     await new AdCreative(args.creative_id).delete();
     const ad = await new Ad(args.id).get(Object.keys(Ad.Fields));
+    const createdCreative = await new AdCreative(ad.creative.id).get(Object.keys(AdCreative.Fields));
     const result = {
       creative_id: ad.creative.id,
       title: ad.name,
       body: newCreative.object_story_spec.link_data.message,
       link: newCreative.object_story_spec.link_data.link,
       status: ad.status,
+      image: args.imageUrl ? args.imageUrl : createdCreative.image_url
     };
-    if (args.image) result.image = args.image.originalname;
     return result;
-  })
+  });
 };
 
 module.exports.deleteAd = (args) => {
@@ -235,14 +237,14 @@ module.exports.deleteAd = (args) => {
     .then(async (res) => {
       if (res.success) await new AdCreative(args.creative_id).delete();
       return res;
-    })
+    });
 };
 
 module.exports.createComplexAd = async (args = {}) => {
-  const { agentName, startTime, endTime, budget, link, body, image, buildingNumber, streetName, city, state, country } = args;
+  const { agentName, startTime, endTime, budget, link, body, image, imageUrl, buildingNumber, streetName, city, state, country, status } = args;
   const adTitle = `${buildingNumber} ${streetName} ${city} ${state} ${country}`;
-
-  const campaign = await createCampaign({ ...adsManagerArgs.campaign, name: agentName });
+  console.log(imageUrl)
+  const campaign = await createCampaign({ ...adsManagerArgs.campaign, name: agentName, status });
   const adSet = await createAdSet({
     ...adsManagerArgs.adSet, 
     campaign_id: campaign.id, 
@@ -250,6 +252,7 @@ module.exports.createComplexAd = async (args = {}) => {
     start_time: startTime,
     end_time: endTime, 
     daily_budget: budget,
+    status,
     targeting: { 
       ...adsManagerArgs.adSet.targeting,
       geo_locations: {
@@ -259,10 +262,11 @@ module.exports.createComplexAd = async (args = {}) => {
     }
   });
   const ad = await createAd({ 
-    ad: {...adsManagerArgs.ad, adset_id: adSet.id, name: adTitle }, 
+    ad: {...adsManagerArgs.ad, adset_id: adSet.id, name: adTitle, status }, 
     creative: { 
       ...adsManagerArgs.adCreative,
       image: image,
+      imageUrl: imageUrl,
       name: adTitle,
       object_story_spec: { 
         ...adsManagerArgs.adCreative.object_story_spec, 
@@ -282,7 +286,6 @@ module.exports.createComplexAd = async (args = {}) => {
     city: city,
     state: state,
     country: country,
-    image: image ? image.originalname : null
   };
 };
 
@@ -297,7 +300,7 @@ module.exports.updateAd = async (oldAd = {}, args = {}) => {
     const address_string = addressFields.reduce((res, current) => {
       const item = args[current] !== undefined && args[current] !== oldAd[current] ? args[current] : oldAd[current];
       result[current] = item;
-      return `${res} ${item}`
+      return `${res} ${item}`;
     }, '');
     args.address_string = address_string.trim();
   };
@@ -313,7 +316,7 @@ module.exports.updateAd = async (oldAd = {}, args = {}) => {
       action: (concurrence) => updateAdSet({ id: adset_id, ...getQuery(concurrence, args) })
     },
     ad : {
-      fields: ['image', 'link', 'body', 'status', 'address_string'],
+      fields: ['image', 'imageUrl', 'link', 'body', 'status', 'address_string'],
       action: (concurrence) => updateAd({ id: id, creative_id: creative_id, ...getQuery(concurrence, args) })
     } 
   };
@@ -324,15 +327,15 @@ module.exports.updateAd = async (oldAd = {}, args = {}) => {
       if (concurrence.length < 1) return;
       return fieldsPerRequest[apiItem].action(concurrence);
     });
-    return Promise.all(apiRequests).then(res => res.reduce((res, current) => ({ ...res, ...current }), {}))
-  }
+    return Promise.all(apiRequests).then(res => res.reduce((res, current) => ({ ...res, ...current }), {}));
+  };
   const updatedAd = await apiRequests();
 
   result = Object.keys(oldAd.toJSON()).reduce((res, current) => {
     if (args.address_string && addressFields.includes(current)) return res; 
     const prop = updatedAd[current] !== undefined && updatedAd[current] !== oldAd[current]
       ? updatedAd[current] 
-      : oldAd[current]
+      : oldAd[current];
     return { ...res, [current]: prop };
   }, {...result});
 
@@ -345,7 +348,8 @@ module.exports.updateAd = async (oldAd = {}, args = {}) => {
 
 const createFeed = async (args = {}) => {
   const feed = await new ProductCatalog(args.catalog.id).createProductFeed([Object.keys(ProductFeed.Fields)], { name: 'tmp.csv' });
-  const feedUpload = await feed.createUpload([Object.keys(ProductFeedUpload.Fields)], {url: args.url});
+  testUrl = 'https://docs.google.com/spreadsheets/d/1rqLke28A-vETJW9VHTXPAt3US0fEW4aSFpvZQ7iTSU8/edit?usp=sharing'
+  await feed.createUpload([Object.keys(ProductFeedUpload.Fields)], {url: /*args.url*/ testUrl});
   return feed._data;
 };
 
@@ -355,13 +359,13 @@ module.exports.createRetargetingAd = async (args) => {
   const url = await createCsv(listings);
 
   const locations = listings.map(item => {
-    return { ...adsManagerArgs.adSet.targeting.geo_locations.custom_locations[0], latitude: item.lat, longitude: item.lng }
-  })
+    return { ...adsManagerArgs.adSet.targeting.geo_locations.custom_locations[0], latitude: item.lat, longitude: item.lng };
+  });
 
   const catalog = await business.createOwnedProductCatalog([Campaign.Fields.name], { name: agentName, vertical: 'home_listings' });
   const feed = await createFeed({ catalog, url: url });
-  const productSet = await new ProductCatalog(catalog.id).createProductSet([], {name: catalog.name})
-  const event = await catalog.createExternalEventSource([], { external_event_sources: [pixelId] });
+  const productSet = await new ProductCatalog(catalog.id).createProductSet([], {name: catalog.name});
+  await catalog.createExternalEventSource([], { external_event_sources: [pixelId] });
     
   const campaign = await createCampaign({ 
     ...catalogArgs.campaign, 
@@ -388,7 +392,7 @@ module.exports.createRetargetingAd = async (args) => {
     creative: {
       ...catalogArgs.adCreative, 
       name: `RetargetingAd ${agentName}`,
-      product_set_id: productSet.id,
+      product_set_id: productSet.id
     },
     retargeting: true
   });
@@ -401,7 +405,7 @@ module.exports.createRetargetingAd = async (args) => {
     agentName: agentName,
     listings: listings,
     startTime: adSet.start_time,
-    endTime: adSet.end_time,
+    endTime: adSet.end_time
   };
 };
 
@@ -436,7 +440,7 @@ module.exports.updateRetargetingAd = async (oldAd = {}, args = {}) => {
           return { ...res, [prop]: args[current] };
         } ,{});
         console.log(query);
-        new AdSet(adset_id).update([], { ...query, name: `RetargetingAd ${args.agentName || oldAd.agentName}`})
+        new AdSet(adset_id).update([], { ...query, name: `RetargetingAd ${args.agentName || oldAd.agentName}`});
       }
     },
     creative: {
@@ -446,10 +450,10 @@ module.exports.updateRetargetingAd = async (oldAd = {}, args = {}) => {
     ad : {
       fields: ['agentName', 'status'],
       action:  () => setTimeout(() => new Ad(id).update([], { 
-          name: `RetargetingAd ${args.agentName || oldAd.agentName}'s listings`, 
-          status: args.status || oldAd.status 
-        }), 1000)
-    },
+        name: `RetargetingAd ${args.agentName || oldAd.agentName}'s listings`, 
+        status: args.status || oldAd.status 
+      }), 1000)
+    }
   };
 
   const apiRequests = async () => {
@@ -459,44 +463,43 @@ module.exports.updateRetargetingAd = async (oldAd = {}, args = {}) => {
       return fieldsPerRequest[apiItem].action(concurrence);
     });
     return Promise.all(apiRequests);
-  }
+  };
   await apiRequests();
 
   return Object.keys(oldAd.toJSON()).reduce((res, current) => {
     const prop = args[current] !== undefined && args[current] !== oldAd[current] ? args[current] : oldAd[current];
     return { ...res, [current]: prop };
   }, {});
-}
+};
 
 module.exports.deleteRetargetingAd = (args) => {
   return new ProductCatalog(args.catalog_id).delete().then(res => {
     if(res.success) return new Campaign(args.campaign_id).delete().then(res => {
       if(res.success) return new AdCreative(args.creative_id).delete().then(res => res);
-    })
-  })
-}
+    });
+  });
+};
 
 /*
     INSIGHTS
 */
 
-module.exports.getInsights = async (args, ads) => {
+module.exports.getInsights = async () => {
   const insightsFields = [
     'ad_id',
     'impressions',
     'clicks',
     'spend',
     'date_start',
-    'date_stop',
+    'date_stop'
   ];
-    const insightsParams = {
+  const insightsParams = {
     time_increment: '1',
     filtering : [],
-    level : 'ad',
+    level : 'ad'
   };
 
   const statTransform = (item) => {
-    console.log(item._data);
     const { ad_id, impressions, clicks, spend, date_start, date_stop } = item._data;
     const [ year, month, day ] = date_start.split('-');
     return {
@@ -515,17 +518,17 @@ module.exports.getInsights = async (args, ads) => {
 
   await Stats.bulkWrite(
     insights.map((item) => 
-    ({
-      updateOne: {
-        filter: { date_start: item.date_start, createdAt: {$gte: from, $lt: to}, ad_id: item.ad_id },
-        update: { $set: item },
-        upsert: true
-      }
-    }))
-  ).then(res => res)
+      ({
+        updateOne: {
+          filter: { date_start: item.date_start, createdAt: {$gte: from, $lt: to}, ad_id: item.ad_id },
+          update: { $set: item },
+          upsert: true
+        }
+      }))
+  ).then(res => res);
 
   setTimeout(() => this.getInsights(), 3600000);
 };
 
-//this.getInsights();
+this.getInsights();
 

@@ -19,5 +19,8 @@ yarn-error.log*
 storage.db*
 
 # ignore local configs
-config/local*
+config/*
+!config/development.json.example
 
+# Log files
+*.log

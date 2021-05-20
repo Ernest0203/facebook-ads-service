@@ -23,7 +23,8 @@
     "express": "^4.17.1",
     "express-async-handler": "^1.1.4",
     "express-jwt": "^6.0.0",
-    "facebook-nodejs-business-sdk": "^9.0.0",
+    "express-queue": "0.0.12",
+    "facebook-nodejs-business-sdk": "^10.0.0",
     "fast-csv": "^4.3.6",
     "joi": "^17.3.0",
     "migrate": "^1.7.0",
@@ -33,6 +34,7 @@
     "winston": "^3.3.3"
   },
   "devDependencies": {
+    "babel-eslint": "^10.1.0",
     "eslint": "^7.15.0"
   }
 }

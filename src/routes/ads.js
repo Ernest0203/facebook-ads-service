@@ -16,6 +16,6 @@ router
   .param('id', (req, res, next, id) => {
     if (id === 'stats')  return getStats(req, res);
     return getAdById(req, res, next, id);
-  })
+  });
 
 module.exports = router;

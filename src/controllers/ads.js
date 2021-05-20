@@ -37,14 +37,14 @@ const updateAd = async (req, res) => {
   if (req.files && req.files.length > 0) query.image = req.files[0];
   const adFromApi = await facebookApi.updateAd(req.data, query);
   const updatedAd = await Ads.findOneAndUpdate({id: adFromApi.id}, adFromApi, { new: true, upser: true });
-  console.log(updatedAd);
   response(res).success(updatedAd);
 };
 
 const deleteAd = async (req, res) => {
-  const response = await facebookApi.deleteAd(req.data)
-  if (response.success) Ads.findByIdAndUpdate({ _id: req.data._id }, { isRemoved: true }, { new: true, upser: true })
-    .then(result => response(res).success(result._id));
+  const responseFromApi = await facebookApi.deleteAd(req.data);
+  if (!responseFromApi.success) response.error('Ad was not delete');
+  return Ads.findByIdAndUpdate({ _id: req.data._id }, { isRemoved: true }, { new: true, upser: true })
+   .then(result => response(res).success(result._id));
 };
 
 const getStats = async (req, res) => {
@@ -53,7 +53,9 @@ const getStats = async (req, res) => {
   const { filter, limit, skip } = aqp(req.query.filter);
 
   const query = { isRemoved: false, ...filter};
-  if (isIgnoreRemoved) { delete query.isRemoved; };
+  if (isIgnoreRemoved) {
+    delete query.isRemoved; 
+  }
 
   const adsIds = await Ads.find(query).then(res => res.map(item => item.id));
 
@@ -74,7 +76,7 @@ const getStats = async (req, res) => {
     _id: 0,
     impressions: { $sum: '$impressions' },
     clicks: { $sum: '$clicks' },
-    spend: { $sum: '$spend' },
+    spend: { $sum: '$spend' }
   };
 
   const stats = await Stats.aggregate([
@@ -82,7 +84,7 @@ const getStats = async (req, res) => {
     { $group: aggregateGroup },
     { $project: { _id: 0, impressions: 1, clicks: 1, spend: 1, day: { $cond: [group === 'month', 0, 1] }, month: 1, year: 1 } },
     { $skip: skip || 0 },
-    { $limit: limit || 100 },
+    { $limit: limit || 100 }
   ]);
 
   response(res).success(stats);
@@ -95,5 +97,5 @@ module.exports = {
   getStats: asyncHandler(getStats),
   createAd: asyncHandler(createAd),
   updateAd: asyncHandler(updateAd),
-  deleteAd: asyncHandler(deleteAd),
+  deleteAd: asyncHandler(deleteAd)
 };

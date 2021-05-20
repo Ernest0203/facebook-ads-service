@@ -10,11 +10,11 @@ const StatSchema = new Schema({
   month: { type: String, required: true },
   year: { type: String, required: true },
   date_start: { type: String, required: true },
-  date_stop: { type: String, required: true },
+  date_stop: { type: String, required: true }
 
 }, {
   versionKey: false,
   timestamps: true
 });
 
-module.exports = Stats = mongoose.model('stats', StatSchema);
+module.exports = mongoose.model('stats', StatSchema);
